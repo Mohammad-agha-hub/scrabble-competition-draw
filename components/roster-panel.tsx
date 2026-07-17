@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Upload, Search, X } from "lucide-react";
+import { Plus, Pencil, Users, Upload, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Student } from "@/lib/types";
 
 export function RosterPanel({
@@ -43,6 +51,12 @@ export function RosterPanel({
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("all");
+
+  const [editing, setEditing] = useState<Student | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editClass, setEditClass] = useState("");
+  const [editSection, setEditSection] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const classes = useMemo(
     () => Array.from(new Set(students.map((s) => s.className))).sort(),
@@ -126,15 +140,40 @@ export function RosterPanel({
     }
   }
 
-  async function removeOne(s: Student) {
+  function openEdit(s: Student) {
+    setEditing(s);
+    setEditName(s.name);
+    setEditClass(s.className);
+    setEditSection(s.section);
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    if (!editName.trim() || !editClass.trim() || !editSection.trim()) {
+      toast.error("Enter a name, class and section.");
+      return;
+    }
+    setEditSaving(true);
     try {
-      const res = await fetch(`/api/students/${s._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/students/${editing._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          className: editClass.trim(),
+          section: editSection.trim(),
+        }),
+      });
       if (!res.ok)
-        throw new Error((await res.json()).error || "Failed to remove.");
-      toast.success(`Removed ${s.name}.`);
+        throw new Error((await res.json()).error || "Failed to save changes.");
+      toast.success(`Updated ${editName.trim()}.`);
       onChanged();
+      setEditing(null);
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -167,7 +206,7 @@ export function RosterPanel({
                     id="class"
                     value={className}
                     onChange={(e) => setClassName(e.target.value)}
-                    placeholder="e.g.Three"
+                    placeholder="e.g. 8"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -203,7 +242,7 @@ export function RosterPanel({
                 <Input
                   value={bulkClass}
                   onChange={(e) => setBulkClass(e.target.value)}
-                  placeholder="e.g. Three"
+                  placeholder="e.g. 7"
                 />
               </div>
               <div className="space-y-1.5">
@@ -296,11 +335,11 @@ export function RosterPanel({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                    onClick={() => removeOne(s)}
-                    aria-label={`Remove ${s.name}`}
+                    className="h-8 w-8 shrink-0 text-muted-foreground opacity-100 transition-opacity hover:text-primary sm:opacity-0 sm:group-hover:opacity-100"
+                    onClick={() => openEdit(s)}
+                    aria-label={`Edit ${s.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
@@ -308,6 +347,61 @@ export function RosterPanel({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit student</DialogTitle>
+            <DialogDescription>
+              Update the name, class or section.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitEdit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-class">Class</Label>
+                <Input
+                  id="edit-class"
+                  value={editClass}
+                  onChange={(e) => setEditClass(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-section">Section</Label>
+                <Input
+                  id="edit-section"
+                  value={editSection}
+                  onChange={(e) => setEditSection(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(null)}
+                disabled={editSaving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
