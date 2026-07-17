@@ -100,12 +100,17 @@ export function GroupsPanel({
             </div>
             <div className="space-y-1.5">
               <Label>Draw scope</Label>
-              <Select value={scope} onValueChange={(v) => setScope(v as GroupBatch["scope"])}>
+              <Select
+                value={scope}
+                onValueChange={(v) => setScope(v as GroupBatch["scope"])}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="class-section">Within each class + section</SelectItem>
+                  <SelectItem value="class-section">
+                    Within each class + section
+                  </SelectItem>
                   <SelectItem value="class">Within each class</SelectItem>
                   <SelectItem value="all">Across everyone</SelectItem>
                 </SelectContent>
@@ -113,7 +118,7 @@ export function GroupsPanel({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="gold" size="lg" onClick={draw} disabled={drawing}>
+            <Button variant="default" size="lg" onClick={draw} disabled={drawing}>
               <Shuffle className="h-4 w-4" />
               {batch ? "Re-draw groups" : "Draw groups"}
             </Button>
@@ -133,10 +138,16 @@ export function GroupsPanel({
                 <Trophy className="h-4 w-4" />
                 {totalPlayers} players · {batch.groupSize} per group
               </span>
-              <span className="hidden sm:inline">{SCOPE_LABEL[batch.scope]}</span>
+              <span className="hidden sm:inline">
+                {SCOPE_LABEL[batch.scope]}
+              </span>
             </div>
             <div className="flex gap-2 print:hidden">
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+              >
                 <Printer className="h-4 w-4" /> Print
               </Button>
               <Button variant="outline" size="sm" onClick={clearDraw}>
@@ -147,20 +158,23 @@ export function GroupsPanel({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {batch.groups.map((g, i) => (
-              <PodCard key={`${g.className}-${g.section}-${g.name}-${i}`} group={g} index={i} />
+              <PodCard
+                key={`${g.className}-${g.section}-${g.name}-${i}`}
+                group={g}
+                index={i}
+              />
             ))}
           </div>
         </>
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <span className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-gold">
-              <Trophy className="h-7 w-7" />
-            </span>
+            
             <CardTitle className="mb-1">No draw yet</CardTitle>
             <CardDescription className="max-w-sm">
-              You have {students.length} student{students.length === 1 ? "" : "s"} on the roster.
-              Pick a group size and hit draw to build the tournament pods.
+              You have {students.length} student
+              {students.length === 1 ? "" : "s"} on the roster. Pick a group
+              size and hit draw to build the tournament pods.
             </CardDescription>
           </CardContent>
         </Card>

@@ -23,22 +23,24 @@ export function PodCard({ group, index }: { group: Group; index: number }) {
       className="animate-pod-in overflow-hidden border-primary/10"
       style={{ animationDelay: `${index * 45}ms` }}
     >
-      <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
-        <div className="flex items-center gap-2.5">
-          <span className="font-display text-xl font-bold text-gold">
+      <div className="flex items-center justify-between gap-2 bg-primary px-4 py-3 text-primary-foreground">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="font-display text-xl font-bold text-primary-foreground">
             {group.name.replace("Group ", "")}
           </span>
-          <div className="leading-tight">
+          <div className="min-w-0 leading-tight">
             <div className="font-display text-sm font-semibold">
               {group.name}
             </div>
-            <div className="text-[11px] text-primary-foreground/60">
+            <div className="truncate text-[11px] text-primary-foreground/60">
               {group.className}
               {group.section !== "—" ? ` · Sec ${group.section}` : ""}
             </div>
           </div>
         </div>
-        <Badge variant="gold">{group.members.length} players</Badge>
+        <Badge variant="secondary" className="shrink-0">
+          {group.members.length} players
+        </Badge>
       </div>
 
       <ol className="divide-y divide-border">
