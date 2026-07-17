@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Canvas: warm paper so navy pods pop */
+    --background: 40 30% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary = deep tournament navy */
+    --primary: 222 55% 16%;
+    --primary-foreground: 40 30% 97%;
+
+    --secondary: 222 20% 94%;
+    --secondary-foreground: 222 47% 16%;
+
+    --muted: 222 16% 95%;
+    --muted-foreground: 222 12% 42%;
+
+    --accent: 222 20% 94%;
+    --accent-foreground: 222 47% 16%;
+
+    /* Gold = the trophy accent */
+    --gold: 41 78% 52%;
+    --gold-foreground: 222 55% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 16% 88%;
+    --input: 222 16% 86%;
+    --ring: 41 78% 52%;
+
+    --radius: 0.85rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  }
+}
+
+/* Subtle field/court texture for the app background */
+.court-bg {
+  background-image:
+    radial-gradient(hsl(var(--primary) / 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.pod-slot-empty {
+  background-image: repeating-linear-gradient(
+    45deg,
+    hsl(var(--muted-foreground) / 0.08),
+    hsl(var(--muted-foreground) / 0.08) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
