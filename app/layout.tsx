@@ -1,9 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 const display = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
@@ -13,10 +17,21 @@ const display = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Draw Day — Tournament Grouping",
-  description: "Add students, then draw balanced random groups for the tournament.",
+  description:
+    "Add students, then draw balanced random groups for the tournament.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={`${inter.variable} ${display.variable}`}>
       <body className="min-h-screen court-bg antialiased">

@@ -46,7 +46,7 @@ export function RosterPanel({
 
   const classes = useMemo(
     () => Array.from(new Set(students.map((s) => s.className))).sort(),
-    [students]
+    [students],
   );
 
   const filtered = useMemo(() => {
@@ -75,7 +75,8 @@ export function RosterPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, className, section }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to add student.");
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Failed to add student.");
       toast.success(`Added ${name.trim()}.`);
       setName("");
       onChanged();
@@ -113,7 +114,9 @@ export function RosterPanel({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to add students.");
-      toast.success(`Added ${data.inserted} students to ${bulkClass} · ${bulkSection}.`);
+      toast.success(
+        `Added ${data.inserted} students to ${bulkClass} · ${bulkSection}.`,
+      );
       setBulk("");
       onChanged();
     } catch (err: any) {
@@ -126,7 +129,8 @@ export function RosterPanel({
   async function removeOne(s: Student) {
     try {
       const res = await fetch(`/api/students/${s._id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to remove.");
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Failed to remove.");
       toast.success(`Removed ${s.name}.`);
       onChanged();
     } catch (err: any) {
@@ -188,7 +192,9 @@ export function RosterPanel({
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-gold" /> Paste a whole class
             </CardTitle>
-            <CardDescription>One name per line — fastest way to load a section.</CardDescription>
+            <CardDescription>
+              One name per line — fastest way to load a section.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -232,23 +238,23 @@ export function RosterPanel({
 
       {/* RIGHT: roster list */}
       <Card className="flex flex-col">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-4 w-4 text-gold" /> Roster
             <Badge variant="secondary">{students.length}</Badge>
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="h-9 w-40 pl-8"
+                className="h-9 w-full pl-8 sm:w-40"
               />
             </div>
             <Select value={filterClass} onValueChange={setFilterClass}>
-              <SelectTrigger className="h-9 w-32">
+              <SelectTrigger className="h-9 w-full sm:w-32">
                 <SelectValue placeholder="Class" />
               </SelectTrigger>
               <SelectContent>
@@ -280,7 +286,9 @@ export function RosterPanel({
                   className="group flex items-center justify-between rounded-lg border bg-white px-3 py-2 transition-colors hover:border-primary/20"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="truncate text-sm font-medium">{s.name}</span>
+                    <span className="truncate text-sm font-medium">
+                      {s.name}
+                    </span>
                     <Badge variant="outline" className="shrink-0">
                       {s.className} · {s.section}
                     </Badge>
