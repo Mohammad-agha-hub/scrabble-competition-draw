@@ -167,7 +167,7 @@ export function RosterPanel({
                     id="class"
                     value={className}
                     onChange={(e) => setClassName(e.target.value)}
-                    placeholder="e.g. 8"
+                    placeholder="e.g.Three"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -203,7 +203,7 @@ export function RosterPanel({
                 <Input
                   value={bulkClass}
                   onChange={(e) => setBulkClass(e.target.value)}
-                  placeholder="e.g. 7"
+                  placeholder="e.g. Three"
                 />
               </div>
               <div className="space-y-1.5">
