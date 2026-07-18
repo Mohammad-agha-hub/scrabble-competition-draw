@@ -1,10 +1,19 @@
 "use client";
 
-import { Crown } from "lucide-react";
+import { useState } from "react";
+import { Crown, X, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { Group } from "@/lib/types";
+import type { Group, Student } from "@/lib/types";
 
 function initials(name: string) {
   return name
@@ -30,6 +39,9 @@ export function PodCard({
   podium = false,
   onScore,
   onWinner,
+  onRemoveMember,
+  onAddMember,
+  availableStudents,
 }: {
   group: Group;
   index: number;
@@ -37,7 +49,18 @@ export function PodCard({
   podium?: boolean; // final group: picks are ranked 1st/2nd/3rd
   onScore?: (memberId: string, score: number | null) => void;
   onWinner?: (memberId: string) => void;
+  onRemoveMember?: (memberId: string) => void;
+  onAddMember?: (studentId: string) => void;
+  availableStudents?: Student[]; // roster students not currently in this round
 }) {
+  const [addValue, setAddValue] = useState("");
+
+  function handleAdd() {
+    if (!addValue) return;
+    onAddMember?.(addValue);
+    setAddValue("");
+  }
+
   const slots = editable
     ? group.members.length
     : Math.max(group.size, group.members.length);
@@ -106,7 +129,7 @@ export function PodCard({
                   "inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold",
                   isWinner
                     ? podium
-                      ? RANK_BADGE[rank] ?? RANK_BADGE[0]
+                      ? (RANK_BADGE[rank] ?? RANK_BADGE[0])
                       : "bg-gold text-gold-foreground"
                     : "bg-secondary text-secondary-foreground",
                 )}
@@ -155,7 +178,10 @@ export function PodCard({
                       "relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
                       isWinner
                         ? podium
-                          ? cn("border-transparent", RANK_BADGE[rank] ?? RANK_BADGE[0])
+                          ? cn(
+                              "border-transparent",
+                              RANK_BADGE[rank] ?? RANK_BADGE[0],
+                            )
                           : "border-gold bg-gold text-gold-foreground"
                         : "border-input text-muted-foreground hover:border-gold hover:text-gold",
                     )}
@@ -166,6 +192,15 @@ export function PodCard({
                         {rank + 1}
                       </span>
                     ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveMember?.(m._id)}
+                    aria-label={`Remove ${m.name} from group`}
+                    title="Remove from group"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
                   </button>
                 </>
               ) : (
@@ -186,7 +221,9 @@ export function PodCard({
                           {ORDINAL[rank] ?? rank + 1}
                         </span>
                       ) : winnerIds.length > 1 ? (
-                        <span className="text-[10px] font-bold">{rank + 1}</span>
+                        <span className="text-[10px] font-bold">
+                          {rank + 1}
+                        </span>
                       ) : null}
                     </span>
                   ) : null}
@@ -208,6 +245,42 @@ export function PodCard({
           </li>
         ))}
       </ol>
+
+      {editable && availableStudents ? (
+        <div className="flex items-center gap-2 border-t border-border bg-secondary/30 px-4 py-2.5">
+          <UserPlus className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {availableStudents.length > 0 ? (
+            <>
+              <Select value={addValue} onValueChange={setAddValue}>
+                <SelectTrigger className="h-8 flex-1 text-xs">
+                  <SelectValue placeholder="Add a student to this group…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableStudents.map((s) => (
+                    <SelectItem key={s._id} value={s._id}>
+                      {s.name} ({s.className} · {s.section})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleAdd}
+                disabled={!addValue}
+                className="h-8 shrink-0"
+              >
+                Add
+              </Button>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Every student is already placed in this round.
+            </span>
+          )}
+        </div>
+      ) : null}
     </Card>
   );
 }

@@ -58,6 +58,13 @@ function roundLabel(round: Round, index: number, total: number) {
   return round.name;
 }
 
+// Ids of every student currently placed somewhere in this round.
+function roundAssignedIds(round: Round): Set<string> {
+  const ids = new Set<string>();
+  round.groups.forEach((g) => g.members.forEach((m) => ids.add(m._id)));
+  return ids;
+}
+
 export function GroupsPanel({
   students,
   batch,
@@ -331,6 +338,10 @@ export function GroupsPanel({
             const isLast = ri === lastIdx;
             const editable = isLast;
             const isFinal = isLast && round.groups.length === 1;
+            const assignedIds = roundAssignedIds(round);
+            const unassigned = editable
+              ? students.filter((s) => !assignedIds.has(s._id))
+              : undefined;
             return (
               <section key={ri} className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -365,6 +376,7 @@ export function GroupsPanel({
                       index={gi}
                       editable={editable}
                       podium={isFinal}
+                      availableStudents={unassigned}
                       onScore={(memberId, score) =>
                         editGroup(ri, gi, (grp) => {
                           if (score === null) delete grp.scores![memberId];
@@ -395,6 +407,51 @@ export function GroupsPanel({
                           },
                           true,
                         );
+                      }}
+                      onRemoveMember={(memberId) => {
+                        const removed = g.members.find(
+                          (m) => m._id === memberId,
+                        );
+                        editGroup(
+                          ri,
+                          gi,
+                          (grp) => {
+                            grp.members = grp.members.filter(
+                              (m) => m._id !== memberId,
+                            );
+                            if (grp.winnerIds)
+                              grp.winnerIds = grp.winnerIds.filter(
+                                (id) => id !== memberId,
+                              );
+                            delete grp.scores![memberId];
+                          },
+                          true,
+                        );
+                        if (removed)
+                          toast.success(`Removed ${removed.name} from ${g.name}.`);
+                      }}
+                      onAddMember={(studentId) => {
+                        const student = students.find(
+                          (s) => s._id === studentId,
+                        );
+                        if (!student) return;
+                        editGroup(
+                          ri,
+                          gi,
+                          (grp) => {
+                            grp.members = [
+                              ...grp.members,
+                              {
+                                _id: student._id,
+                                name: student.name,
+                                className: student.className,
+                                section: student.section,
+                              },
+                            ];
+                          },
+                          true,
+                        );
+                        toast.success(`Added ${student.name} to ${g.name}.`);
                       }}
                     />
                   ))}
