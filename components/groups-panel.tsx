@@ -11,10 +11,19 @@ import {
   Crown,
   ChevronRight,
   Undo2,
+  FolderPlus,
+  Users,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -32,6 +41,7 @@ import {
   roundWinners,
   FINAL_PICKS,
   MAX_ADVANCERS,
+  type Group,
   type GroupBatch,
   type Round,
   type Student,
@@ -78,11 +88,35 @@ export function GroupsPanel({
   const [scope, setScope] = useState<GroupBatch["scope"]>("class-section");
   const [drawing, setDrawing] = useState(false);
   const [nextSize, setNextSize] = useState("4");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [addToGroupIdx, setAddToGroupIdx] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Who is allowed into a round: the full roster for round one, then only
+  // the winners of the previous round after that.
+  function eligiblePool(roundIdx: number): Student[] {
+    if (!batch || roundIdx === 0) return students;
+    const prev = batch.rounds[roundIdx - 1];
+    return prev ? roundWinners(prev) : students;
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function draw() {
     if (students.length === 0) {
       toast.error("Add students before drawing groups.");
+      return;
+    }
+    const size = Number(groupSize);
+    if (!Number.isInteger(size) || size < 2) {
+      toast.error("Group size must be a whole number, 2 or more.");
       return;
     }
     setDrawing(true);
@@ -90,7 +124,7 @@ export function GroupsPanel({
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupSize: Number(groupSize), scope }),
+        body: JSON.stringify({ groupSize: size, scope }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Draw failed.");
@@ -151,6 +185,130 @@ export function GroupsPanel({
     persist({ ...batch, rounds }, immediate);
   }
 
+  const GROUP_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  // Add a fresh, empty group to a round so students can be placed into it manually.
+  function addGroup(roundIdx: number) {
+    if (!batch) return;
+    const round = batch.rounds[roundIdx];
+    if (!round) return;
+    const letter =
+      round.groups.length < GROUP_LETTERS.length
+        ? GROUP_LETTERS[round.groups.length]
+        : `${round.groups.length + 1}`;
+    const newGroup: Group = {
+      name: `Group ${letter}`,
+      className: round.groups[0]?.className ?? "Manual",
+      section: round.groups[0]?.section ?? "—",
+      members: [],
+      size: round.groupSize,
+      winnerIds: [],
+      scores: {},
+    };
+    const rounds = batch.rounds.map((r, ri) =>
+      ri !== roundIdx ? r : { ...r, groups: [...r.groups, newGroup] },
+    );
+    persist({ ...batch, rounds }, true);
+    toast.success(`Added ${newGroup.name}.`);
+  }
+
+  // Delete an entire group from a round. Its members simply become
+  // "unassigned" again and can be re-added into any other group.
+  function removeGroup(roundIdx: number, groupIdx: number) {
+    if (!batch) return;
+    const round = batch.rounds[roundIdx];
+    const group = round?.groups[groupIdx];
+    if (!round || !group) return;
+    if (round.groups.length <= 1) {
+      toast.error("A round needs at least one group.");
+      return;
+    }
+    if (
+      group.members.length > 0 &&
+      !window.confirm(
+        `Delete ${group.name}? Its ${group.members.length} student${
+          group.members.length === 1 ? "" : "s"
+        } will become unassigned — you can re-add them to another group.`,
+      )
+    ) {
+      return;
+    }
+    const rounds = batch.rounds.map((r, ri) =>
+      ri !== roundIdx
+        ? r
+        : { ...r, groups: r.groups.filter((_, gi) => gi !== groupIdx) },
+    );
+    persist({ ...batch, rounds }, true);
+    toast.success(`Removed ${group.name}.`);
+  }
+
+  // Build a brand-new group directly out of the checked students.
+  function createGroupFromSelection(roundIdx: number) {
+    if (!batch || selectedIds.size === 0) return;
+    const round = batch.rounds[roundIdx];
+    if (!round) return;
+    const chosen = eligiblePool(roundIdx).filter((s) => selectedIds.has(s._id));
+    if (chosen.length === 0) return;
+    const letter =
+      round.groups.length < GROUP_LETTERS.length
+        ? GROUP_LETTERS[round.groups.length]
+        : `${round.groups.length + 1}`;
+    const newGroup: Group = {
+      name: `Group ${letter}`,
+      className: round.groups[0]?.className ?? "Manual",
+      section: round.groups[0]?.section ?? "—",
+      members: chosen.map((s) => ({
+        _id: s._id,
+        name: s.name,
+        className: s.className,
+        section: s.section,
+      })),
+      size: round.groupSize,
+      winnerIds: [],
+      scores: {},
+    };
+    const rounds = batch.rounds.map((r, ri) =>
+      ri !== roundIdx ? r : { ...r, groups: [...r.groups, newGroup] },
+    );
+    persist({ ...batch, rounds }, true);
+    toast.success(
+      `Created ${newGroup.name} with ${chosen.length} student${
+        chosen.length === 1 ? "" : "s"
+      }.`,
+    );
+    setSelectedIds(new Set());
+  }
+
+  // Drop the checked students into an existing group in this round.
+  function addSelectionToGroup(roundIdx: number, groupIdx: number) {
+    if (!batch || selectedIds.size === 0) return;
+    const chosen = eligiblePool(roundIdx).filter((s) => selectedIds.has(s._id));
+    if (chosen.length === 0) return;
+    editGroup(
+      roundIdx,
+      groupIdx,
+      (grp) => {
+        grp.members = [
+          ...grp.members,
+          ...chosen.map((s) => ({
+            _id: s._id,
+            name: s.name,
+            className: s.className,
+            section: s.section,
+          })),
+        ];
+      },
+      true,
+    );
+    const groupName =
+      batch.rounds[roundIdx]?.groups[groupIdx]?.name ?? "the group";
+    toast.success(
+      `Added ${chosen.length} student${chosen.length === 1 ? "" : "s"} to ${groupName}.`,
+    );
+    setSelectedIds(new Set());
+    setAddToGroupIdx("");
+  }
+
   function advance() {
     if (!batch) return;
     const last = batch.rounds[batch.rounds.length - 1];
@@ -159,7 +317,12 @@ export function GroupsPanel({
       return;
     }
     const winners = roundWinners(last);
-    const size = Math.min(winners.length, Math.max(2, Number(nextSize) || 4));
+    const requested = Number(nextSize);
+    if (!Number.isInteger(requested) || requested < 2) {
+      toast.error("Next group size must be a whole number, 2 or more.");
+      return;
+    }
+    const size = Math.min(winners.length, requested);
     const groups = makeWinnerGroups(winners, size);
     const round: Round = {
       name: `Round ${batch.rounds.length + 1}`,
@@ -180,7 +343,9 @@ export function GroupsPanel({
     toast.success("Removed the last round.");
   }
 
-  const totalPlayers = batch ? batch.rounds[0].groups.reduce((n, g) => n + g.members.length, 0) : 0;
+  const totalPlayers = batch
+    ? batch.rounds[0].groups.reduce((n, g) => n + g.members.length, 0)
+    : 0;
   const lastIdx = batch ? batch.rounds.length - 1 : -1;
   const lastRound = batch ? batch.rounds[lastIdx] : null;
   const winnersReady = lastRound ? roundComplete(lastRound) : false;
@@ -194,14 +359,6 @@ export function GroupsPanel({
     ? Math.min(FINAL_PICKS, finalGroup.members.length)
     : 0;
   const podiumDone = !!finalGroup && podiumWinners.length >= podiumTarget;
-  const advanceOptions = Array.from(
-    { length: Math.max(1, Math.min(6, pendingWinners) - 1) },
-    (_, i) => i + 2,
-  );
-  // Keep the picker showing a valid option even as the winner pool shrinks.
-  const effectiveNextSize = advanceOptions.includes(Number(nextSize))
-    ? nextSize
-    : String(advanceOptions[advanceOptions.length - 1] ?? 2);
 
   return (
     <div className="space-y-6">
@@ -210,18 +367,15 @@ export function GroupsPanel({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Group size</Label>
-              <Select value={groupSize} onValueChange={setGroupSize}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2, 3, 4, 5, 6].map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n} per group
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={2}
+                max={Math.max(2, students.length)}
+                value={groupSize}
+                onChange={(e) => setGroupSize(e.target.value)}
+                placeholder="e.g. 4"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Draw scope</Label>
@@ -243,7 +397,12 @@ export function GroupsPanel({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="default" size="lg" onClick={draw} disabled={drawing}>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={draw}
+              disabled={drawing}
+            >
               <Shuffle className="h-4 w-4" />
               {batch ? "Re-draw (reset)" : "Draw groups"}
             </Button>
@@ -257,13 +416,16 @@ export function GroupsPanel({
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                 <Layers className="h-4 w-4 text-gold" />
-                {batch.rounds.length} round{batch.rounds.length === 1 ? "" : "s"}
+                {batch.rounds.length} round
+                {batch.rounds.length === 1 ? "" : "s"}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Trophy className="h-4 w-4" />
                 {totalPlayers} players
               </span>
-              <span className="hidden sm:inline">{SCOPE_LABEL[batch.scope]}</span>
+              <span className="hidden sm:inline">
+                {SCOPE_LABEL[batch.scope]}
+              </span>
             </div>
             <div className="flex gap-2 print:hidden">
               {batch.rounds.length > 1 && (
@@ -271,7 +433,11 @@ export function GroupsPanel({
                   <Undo2 className="h-4 w-4" /> Undo round
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+              >
                 <Printer className="h-4 w-4" /> Print
               </Button>
               <Button variant="outline" size="sm" onClick={clearDraw}>
@@ -340,11 +506,11 @@ export function GroupsPanel({
             const isFinal = isLast && round.groups.length === 1;
             const assignedIds = roundAssignedIds(round);
             const unassigned = editable
-              ? students.filter((s) => !assignedIds.has(s._id))
+              ? eligiblePool(ri).filter((s) => !assignedIds.has(s._id))
               : undefined;
             return (
               <section key={ri} className="space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-display text-lg font-bold text-primary">
                     {roundLabel(round, ri, batch.rounds.length)}
                   </h3>
@@ -367,7 +533,111 @@ export function GroupsPanel({
                       </>
                     )}
                   </span>
+                  {editable && !isFinal ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto print:hidden"
+                      onClick={() => addGroup(ri)}
+                    >
+                      <FolderPlus className="h-4 w-4" /> Add group
+                    </Button>
+                  ) : null}
                 </div>
+
+                {editable && unassigned && unassigned.length > 0 ? (
+                  <Card className="print:hidden">
+                    <CardContent className="space-y-3 py-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Users className="h-4 w-4 text-gold" />
+                        Unassigned students ({unassigned.length})
+                        {selectedIds.size > 0 && (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            · {selectedIds.size} selected
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex max-h-52 flex-wrap gap-2 overflow-y-auto pr-1">
+                        {unassigned.map((s) => {
+                          const checked = selectedIds.has(s._id);
+                          return (
+                            <label
+                              key={s._id}
+                              className={cn(
+                                "flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
+                                checked
+                                  ? "border-gold bg-gold/10 font-medium text-foreground"
+                                  : "border-input text-muted-foreground hover:border-primary/30",
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleSelected(s._id)}
+                                className="h-3.5 w-3.5 accent-gold"
+                              />
+                              {s.name} ({s.className} · {s.section})
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {selectedIds.size > 0 ? (
+                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => createGroupFromSelection(ri)}
+                          >
+                            <FolderPlus className="h-4 w-4" /> Create group from
+                            selected
+                          </Button>
+                          {round.groups.length > 0 ? (
+                            <>
+                              <span className="text-xs text-muted-foreground">
+                                or
+                              </span>
+                              <Select
+                                value={addToGroupIdx}
+                                onValueChange={setAddToGroupIdx}
+                              >
+                                <SelectTrigger className="h-9 w-[200px]">
+                                  <SelectValue placeholder="Add to existing group…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {round.groups.map((g, gi) => (
+                                    <SelectItem key={gi} value={String(gi)}>
+                                      {g.name} ({g.members.length} players)
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={!addToGroupIdx}
+                                onClick={() =>
+                                  addSelectionToGroup(ri, Number(addToGroupIdx))
+                                }
+                              >
+                                <UserPlus className="h-4 w-4" /> Add selected
+                              </Button>
+                            </>
+                          ) : null}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedIds(new Set())}
+                          >
+                            Clear selection
+                          </Button>
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ) : null}
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {round.groups.map((g, gi) => (
                     <PodCard
@@ -377,6 +647,9 @@ export function GroupsPanel({
                       editable={editable}
                       podium={isFinal}
                       availableStudents={unassigned}
+                      onDeleteGroup={
+                        editable ? () => removeGroup(ri, gi) : undefined
+                      }
                       onScore={(memberId, score) =>
                         editGroup(ri, gi, (grp) => {
                           if (score === null) delete grp.scores![memberId];
@@ -428,7 +701,9 @@ export function GroupsPanel({
                           true,
                         );
                         if (removed)
-                          toast.success(`Removed ${removed.name} from ${g.name}.`);
+                          toast.success(
+                            `Removed ${removed.name} from ${g.name}.`,
+                          );
                       }}
                       onAddMember={(studentId) => {
                         const student = students.find(
@@ -490,18 +765,16 @@ export function GroupsPanel({
                     <Label className="text-xs text-muted-foreground">
                       Next group size
                     </Label>
-                    <Select value={effectiveNextSize} onValueChange={setNextSize}>
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {advanceOptions.map((n) => (
-                          <SelectItem key={n} value={String(n)}>
-                            {n} per group
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={2}
+                      max={Math.max(2, pendingWinners)}
+                      value={nextSize}
+                      onChange={(e) => setNextSize(e.target.value)}
+                      placeholder="e.g. 4"
+                      className="h-10 w-[100px]"
+                    />
                     <Button onClick={advance}>
                       Make next round <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -517,8 +790,8 @@ export function GroupsPanel({
             <CardTitle className="mb-1">No draw yet</CardTitle>
             <CardDescription className="max-w-sm">
               You have {students.length} student
-              {students.length === 1 ? "" : "s"} on the roster. Pick a group size
-              and hit draw to build round one.
+              {students.length === 1 ? "" : "s"} on the roster. Pick a group
+              size and hit draw to build round one.
             </CardDescription>
           </CardContent>
         </Card>

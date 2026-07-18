@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, X, UserPlus } from "lucide-react";
+import { Crown, X, UserPlus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function PodCard({
   onRemoveMember,
   onAddMember,
   availableStudents,
+  onDeleteGroup,
 }: {
   group: Group;
   index: number;
@@ -52,6 +53,7 @@ export function PodCard({
   onRemoveMember?: (memberId: string) => void;
   onAddMember?: (studentId: string) => void;
   availableStudents?: Student[]; // roster students not currently in this round
+  onDeleteGroup?: () => void; // delete this entire group from the round
 }) {
   const [addValue, setAddValue] = useState("");
 
@@ -103,9 +105,20 @@ export function PodCard({
             </div>
           </div>
         </div>
-        <Badge variant="secondary" className="shrink-0">
-          {group.members.length} players
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="secondary">{group.members.length} players</Badge>
+          {editable && onDeleteGroup ? (
+            <button
+              type="button"
+              onClick={onDeleteGroup}
+              aria-label={`Delete ${group.name}`}
+              title="Delete this group"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <ol className="divide-y divide-border">
