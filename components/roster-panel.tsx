@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Users, Upload, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Upload, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +57,9 @@ export function RosterPanel({
   const [editClass, setEditClass] = useState("");
   const [editSection, setEditSection] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+
+  const [deleting, setDeleting] = useState<Student | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const classes = useMemo(
     () => Array.from(new Set(students.map((s) => s.className))).sort(),
@@ -174,6 +177,25 @@ export function RosterPanel({
       toast.error(err.message);
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteSaving(true);
+    try {
+      const res = await fetch(`/api/students/${deleting._id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Failed to remove student.");
+      toast.success(`Removed ${deleting.name}.`);
+      onChanged();
+      setDeleting(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeleteSaving(false);
     }
   }
 
@@ -332,15 +354,26 @@ export function RosterPanel({
                       {s.className} · {s.section}
                     </Badge>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 shrink-0 text-muted-foreground opacity-100 transition-opacity hover:text-primary sm:opacity-0 sm:group-hover:opacity-100"
-                    onClick={() => openEdit(s)}
-                    aria-label={`Edit ${s.name}`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-primary sm:opacity-0 sm:group-hover:opacity-100"
+                      onClick={() => openEdit(s)}
+                      aria-label={`Edit ${s.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground opacity-100 transition-opacity hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
+                      onClick={() => setDeleting(s)}
+                      aria-label={`Remove ${s.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -400,6 +433,40 @@ export function RosterPanel({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove student?</DialogTitle>
+            <DialogDescription>
+              {deleting
+                ? `This removes ${deleting.name} (${deleting.className} · ${deleting.section}) from the roster. This can't be undone.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleting(null)}
+              disabled={deleteSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteSaving}
+            >
+              {deleteSaving ? "Removing…" : "Remove student"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
