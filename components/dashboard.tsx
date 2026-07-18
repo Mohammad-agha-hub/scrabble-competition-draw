@@ -6,6 +6,7 @@ import { Users, School, Layers } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RosterPanel } from "@/components/roster-panel";
 import { GroupsPanel } from "@/components/groups-panel";
+import { Bracket } from "@/components/bracket";
 import type { GroupBatch, Student } from "@/lib/types";
 
 function Stat({
@@ -101,6 +102,7 @@ export function Dashboard() {
         <TabsList>
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="draw">The Draw</TabsTrigger>
+          <TabsTrigger value="bracket">Bracket</TabsTrigger>
         </TabsList>
 
         <TabsContent value="roster">
@@ -116,6 +118,10 @@ export function Dashboard() {
         <TabsContent value="draw">
           <GroupsPanel students={students} batch={batch} onBatch={setBatch} />
         </TabsContent>
+
+        <TabsContent value="bracket">
+          <Bracket batch={batch} />
+        </TabsContent>
       </Tabs>
 
       {/* Printable draw (only visible when printing) */}
@@ -124,26 +130,36 @@ export function Dashboard() {
           <h2 className="mb-4 font-display text-2xl font-bold">
             Tournament Draw
           </h2>
-          <div className="grid grid-cols-3 gap-4">
-            {batch.groups.map((g, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="mb-2 font-semibold">
-                  {g.name} · {g.className}
-                  {g.section !== "—" ? ` ${g.section}` : ""}
-                </div>
-                <ol className="list-decimal pl-5 text-sm">
-                  {g.members.map((m) => (
-                    <li key={m._id}>
-                      {m.name}{" "}
-                      <span className="text-muted-foreground">
-                        ({m.className} · {m.section})
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+          {batch.rounds.map((round, ri) => (
+            <div key={ri} className="mb-6 break-inside-avoid">
+              <h3 className="mb-2 font-display text-lg font-bold">
+                {round.name}
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                {round.groups.map((g, i) => (
+                  <div key={i} className="rounded-lg border p-3">
+                    <div className="mb-2 font-semibold">
+                      {g.name} · {g.className}
+                      {g.section !== "—" ? ` ${g.section}` : ""}
+                    </div>
+                    <ol className="list-decimal pl-5 text-sm">
+                      {g.members.map((m) => {
+                        const isWinner = (g.winnerIds ?? []).includes(m._id);
+                        const score = g.scores?.[m._id];
+                        return (
+                          <li key={m._id} className={isWinner ? "font-bold" : ""}>
+                            {m.name}
+                            {typeof score === "number" ? ` — ${score}` : ""}
+                            {isWinner ? " ★" : ""}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

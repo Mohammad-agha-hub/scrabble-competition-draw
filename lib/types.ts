@@ -19,14 +19,28 @@ export type Group = {
   section: string;
   members: GroupMember[];
   size: number; // requested group size (usually 4)
+  winnerIds?: string[]; // member _ids that advance (1 or 2 per group)
+  scores?: Record<string, number>; // member _id -> score
+};
+
+// A group can send at most this many players to the next round.
+export const MAX_ADVANCERS = 2;
+
+// In the final group we rank a podium instead: 1st, 2nd and 3rd place.
+export const FINAL_PICKS = 3;
+
+export type Round = {
+  name: string; // e.g. "Round 1"
+  groupSize: number;
+  groups: Group[];
 };
 
 export type GroupBatch = {
   _id?: string;
   createdAt: string;
-  groupSize: number;
+  groupSize: number; // group size used for the first round
   scope: "class-section" | "class" | "all";
-  groups: Group[];
+  rounds: Round[];
 };
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -114,8 +128,62 @@ export function generateGroups(
         section: bucket.section,
         members,
         size: groupSize,
+        winnerIds: [],
+        scores: {},
       });
     });
   }
   return result;
+}
+
+// Build the groups for a follow-up round by pooling the given winners and
+// splitting them into fresh groups of `size`. Matchups are randomised.
+export function makeWinnerGroups(
+  winners: GroupMember[],
+  size: number,
+): Group[] {
+  const chunks = chunk(shuffle(winners), size);
+  return chunks.map((members, i) => {
+    const letter = i < LETTERS.length ? LETTERS[i] : `${i + 1}`;
+    return {
+      name: `Group ${letter}`,
+      className: "Winners",
+      section: "—",
+      members,
+      size,
+      winnerIds: [],
+      scores: {},
+    };
+  });
+}
+
+// The winner members of a single group, in the order they were picked
+// (1st place first). Ignores ids that aren't in the group.
+export function groupWinners(g: Group): GroupMember[] {
+  return (g.winnerIds ?? [])
+    .map((id) => g.members.find((m) => m._id === id))
+    .filter((m): m is GroupMember => Boolean(m));
+}
+
+// Collect every advancing member across all groups in a round.
+export function roundWinners(round: Round): GroupMember[] {
+  return round.groups.flatMap(groupWinners);
+}
+
+// True when every group in the round has advanced at least one player.
+export function roundComplete(round: Round): boolean {
+  return round.groups.every((g) => groupWinners(g).length > 0);
+}
+
+// The final standings: the ordered picks (1st, 2nd, 3rd) of the last round's
+// single group. Empty until the tournament reaches a final group.
+export function podium(batch: GroupBatch): GroupMember[] {
+  const last = batch.rounds[batch.rounds.length - 1];
+  if (!last || last.groups.length !== 1) return [];
+  return groupWinners(last.groups[0]);
+}
+
+// The champion is whoever was picked 1st in the final group.
+export function champion(batch: GroupBatch): GroupMember | null {
+  return podium(batch)[0] ?? null;
 }
