@@ -197,7 +197,7 @@ export function Bracket({ batch }: { batch: GroupBatch | null }) {
           {batch.rounds.map((round, ri) => {
             const isFinal = ri === totalRounds - 1 && round.groups.length === 1;
             return (
-              <div key={ri} className="flex w-52 shrink-0 flex-col">
+              <div key={ri} className="flex min-w-52 max-w-80 shrink-0 flex-col">
                 <div className="mb-3 text-center">
                   <div className="font-display text-sm font-bold text-primary">
                     {roundTitle(round.groups.length, ri, totalRounds)}
@@ -268,7 +268,7 @@ function BracketCard({
             >
               <span
                 className={cn(
-                  "min-w-0 flex-1 truncate text-[13px]",
+                  "min-w-0 flex-1 break-words text-[13px]",
                   isWinner
                     ? "font-semibold text-foreground"
                     : "text-muted-foreground",
