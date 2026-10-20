@@ -374,7 +374,7 @@ export function GroupsPanel({
                 max={Math.max(2, students.length)}
                 value={groupSize}
                 onChange={(e) => setGroupSize(e.target.value)}
-                placeholder="e.g. 4"
+                placeholder="e.g. Four"
               />
             </div>
             <div className="space-y-1.5">
@@ -772,7 +772,7 @@ export function GroupsPanel({
                       max={Math.max(2, pendingWinners)}
                       value={nextSize}
                       onChange={(e) => setNextSize(e.target.value)}
-                      placeholder="e.g. 4"
+                      placeholder="e.g. Four"
                       className="h-10 w-[100px]"
                     />
                     <Button onClick={advance}>
